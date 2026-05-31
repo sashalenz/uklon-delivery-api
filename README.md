@@ -21,7 +21,7 @@ UklonDelivery::order()->cancel($order->id, $cancelRequest);
 ## Requirements
 
 * PHP **8.2+**
-* Laravel **11 / 12**
+* Laravel **11 / 12 / 13**
 * `spatie/laravel-data` **^4.4**
 
 ## Installation
