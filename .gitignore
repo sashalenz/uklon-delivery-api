@@ -1,0 +1,12 @@
+.DS_Store
+.idea
+.phpunit.cache
+.phpunit.result.cache
+.phpstan.cache
+.pint.cache
+build
+composer.lock
+coverage
+phpunit.xml
+testbench.yaml
+vendor
