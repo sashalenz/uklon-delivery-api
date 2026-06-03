@@ -39,6 +39,7 @@ final class Request
         private readonly array $params = [],
         private readonly string $verb = 'GET',
         private readonly string $dataKey = self::DATA_KEY_ROOT,
+        private readonly ?Credentials $credentials = null,
     ) {}
 
     /**
@@ -57,7 +58,7 @@ final class Request
             );
         } catch (RequestException $e) {
             if ($e->response->status() === 401) {
-                app(TokenManager::class)->forget();
+                $this->tokenManager()->forget();
             }
 
             if ($e->response->serverError()) {
@@ -129,14 +130,24 @@ final class Request
             ->baseUrl($this->baseUrl())
             ->asJson()
             ->acceptJson()
-            ->withToken(app(TokenManager::class)->getToken());
+            ->withToken($this->tokenManager()->getToken());
+    }
+
+    /**
+     * A token manager bound to this request's credentials (or the global config
+     * defaults when none were passed). Cheap to instantiate — the OAuth token it
+     * issues is shared via the cache, keyed per `client_id`.
+     */
+    private function tokenManager(): TokenManager
+    {
+        return $this->credentials === null
+            ? app(TokenManager::class)
+            : new TokenManager($this->credentials);
     }
 
     private function baseUrl(): string
     {
-        return (bool) config('uklon-delivery-api.staging')
-            ? (string) config('uklon-delivery-api.staging_url')
-            : (string) config('uklon-delivery-api.url');
+        return ($this->credentials ?? Credentials::fromConfig())->baseUrl();
     }
 
     /**

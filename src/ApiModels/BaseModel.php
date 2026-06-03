@@ -6,6 +6,7 @@ namespace Sashalenz\UklonDelivery\ApiModels;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\Conditionable;
+use Sashalenz\UklonDelivery\Credentials;
 use Sashalenz\UklonDelivery\Exceptions\UklonDeliveryException;
 use Sashalenz\UklonDelivery\Request;
 use Spatie\LaravelData\Contracts\BaseData;
@@ -31,9 +32,29 @@ abstract class BaseModel
 
     protected int $cacheSeconds = -1;
 
-    public static function make(): static
+    /**
+     * Account credentials for every request this model makes. Null means "use
+     * the global config defaults" — preserved across {@see self::reset()} so a
+     * single model instance stays bound to one account across chained calls.
+     */
+    protected ?Credentials $credentials = null;
+
+    public static function make(?Credentials $credentials = null): static
     {
-        return new static;
+        $instance = new static;
+        $instance->credentials = $credentials;
+
+        return $instance;
+    }
+
+    /**
+     * Bind (or rebind) the account credentials for subsequent requests.
+     */
+    public function withCredentials(?Credentials $credentials): static
+    {
+        $this->credentials = $credentials;
+
+        return $this;
     }
 
     public function cache(int $seconds = -1): static
@@ -124,6 +145,7 @@ abstract class BaseModel
             params: $this->params,
             verb: $this->verb,
             dataKey: $this->dataKey,
+            credentials: $this->credentials,
         );
 
         if ($this->canBeCached) {

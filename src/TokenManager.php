@@ -16,6 +16,11 @@ use Sashalenz\UklonDelivery\Exceptions\UklonDeliveryException;
  * and caches it for its `expires_in` lifetime (minus a safety margin), so the
  * token is reused across requests instead of authenticating every call.
  *
+ * Each instance authenticates with a specific {@see Credentials} set (or the
+ * global config defaults when none is given). The cache key is derived from the
+ * `client_id`, so tokens for different accounts never collide and multiple
+ * managers for the same account transparently share one cached token.
+ *
  * Docs: https://deliverygateway.uklon.com.ua/docs (Authentication)
  */
 final class TokenManager
@@ -24,6 +29,10 @@ final class TokenManager
 
     /** Seconds subtracted from `expires_in` so a token never expires mid-flight. */
     private const EXPIRY_MARGIN = 30;
+
+    public function __construct(
+        private readonly ?Credentials $credentials = null,
+    ) {}
 
     /**
      * Return a valid bearer access token, authenticating only when the cache
@@ -49,6 +58,8 @@ final class TokenManager
      */
     public function authenticate(): string
     {
+        $credentials = $this->credentials();
+
         try {
             $response = Http::timeout((int) config('uklon-delivery-api.timeout', 10))
                 ->retry(
@@ -56,13 +67,13 @@ final class TokenManager
                     (int) config('uklon-delivery-api.retry_sleep', 100),
                     throw: false,
                 )
-                ->baseUrl($this->baseUrl())
+                ->baseUrl($credentials->baseUrl())
                 ->asJson()
                 ->acceptJson()
                 ->post(self::AUTH_ENDPOINT, [
-                    'app_uid' => (string) config('uklon-delivery-api.app_uid'),
-                    'client_id' => (string) config('uklon-delivery-api.client_id'),
-                    'client_secret' => (string) config('uklon-delivery-api.client_secret'),
+                    'app_uid' => $credentials->appUid,
+                    'client_id' => $credentials->clientId,
+                    'client_secret' => $credentials->clientSecret,
                 ])
                 ->throw();
         } catch (ConnectionException $e) {
@@ -105,15 +116,13 @@ final class TokenManager
         Cache::forget($this->getCacheKey());
     }
 
-    private function baseUrl(): string
+    private function credentials(): Credentials
     {
-        return (bool) config('uklon-delivery-api.staging')
-            ? (string) config('uklon-delivery-api.staging_url')
-            : (string) config('uklon-delivery-api.url');
+        return $this->credentials ?? Credentials::fromConfig();
     }
 
     private function getCacheKey(): string
     {
-        return 'uklon-delivery_token_'.md5((string) config('uklon-delivery-api.client_id'));
+        return 'uklon-delivery_token_'.md5($this->credentials()->clientId);
     }
 }

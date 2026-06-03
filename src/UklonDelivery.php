@@ -25,27 +25,36 @@ use Sashalenz\UklonDelivery\ApiModels\Webhook\Webhook;
  * Authentication (OAuth bearer token) is handled transparently by
  * {@see TokenManager}; just configure `app_uid`/`client_id`/`client_secret`.
  *
+ * Multiple accounts: pass {@see Credentials} to any entry point and that
+ * model authenticates/signs with those values instead of the config defaults —
+ * tokens are cached per `client_id`, so accounts never collide:
+ *
+ * ```php
+ * $creds = new Credentials($appUid, $clientId, $clientSecret, $webhookSecret);
+ * UklonDelivery::order($creds)->create($createRequest);
+ * ```
+ *
  * Docs: https://deliverygateway.uklon.com.ua/docs
  */
 final class UklonDelivery
 {
-    public static function fare(): Fare
+    public static function fare(?Credentials $credentials = null): Fare
     {
-        return new Fare;
+        return Fare::make($credentials);
     }
 
-    public static function order(): Order
+    public static function order(?Credentials $credentials = null): Order
     {
-        return new Order;
+        return Order::make($credentials);
     }
 
-    public static function webhook(): Webhook
+    public static function webhook(?Credentials $credentials = null): Webhook
     {
-        return new Webhook;
+        return Webhook::make($credentials);
     }
 
-    public static function city(): City
+    public static function city(?Credentials $credentials = null): City
     {
-        return new City;
+        return City::make($credentials);
     }
 }
